@@ -56,6 +56,9 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
   </style>
+  <!-- Firebase SDK 추가 -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
   <canvas id="gameCanvas" width="300" height="533"></canvas>
@@ -70,6 +73,17 @@
     const ctx = canvas.getContext('2d');
     const startBtn = document.getElementById('startBtn');
     const restartBtn = document.getElementById('restartBtn');
+    const firebaseConfig = {
+      apiKey: "AIzaSyA3duM9_ow4_tNzuyceCHPq1eb3smRe8UM",
+      authDomain: "ukkkikki-a54bb.firebaseapp.com",
+      projectId: "ukkkikki-a54bb",
+      storageBucket: "ukkkikki-a54bb.appspot.com",
+      messagingSenderId: "1063235467265",
+      appId: "1:1063235467265:web:55ec53c799ffeb03626800"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
     let gameStarted = false;
 
@@ -115,6 +129,14 @@
         jumpCount++;
       }
     });
+
+    <div id="nameContainer" style="text-align: center; margin-top: 10px;" hidden>
+    <input id="playerName" placeholder="이름 입력" />
+    <button onclick="submitScore()">등록</button>
+    </div>
+
+    <div id="rankingContainer" style="text-align: center; margin-top: 20px;"></div>
+
 
     startBtn.addEventListener('click', () => {
       if (gameStarted) return;
@@ -222,20 +244,20 @@
       if (!gameStarted) return;
 
       if (gameOver) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-        ctx.fillStyle = 'black';
-        ctx.font = '48px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 40);
-  
-        ctx.font = '24px Arial';
-        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
-  
-        restartBtn.hidden = false;
-        return;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = 'black';
+          ctx.font = '48px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 40);
+          ctx.font = '24px Arial';
+          ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+
+          document.getElementById('nameContainer').hidden = false;
+          restartBtn.hidden = false;
+         return;
       }
+
 
       updatePlayer();
       updateObstacles();
@@ -252,6 +274,31 @@
 
       requestAnimationFrame(gameLoop);
     }
+
+    function submitScore() {
+    const name = document.getElementById('playerName').value.trim();
+    if (!name) return alert("이름을 입력해주세요!");
+
+    db.collection("scores").add({ name, score, timestamp: Date.now() })
+      .then(() => {
+        document.getElementById("nameContainer").hidden = true;
+        showRanking();
+      });
+  }  
+
+  function showRanking() {
+      db.collection("scores")
+     .orderBy("score", "desc")
+      .limit(5)
+      .get()
+      .then(snapshot => {
+        const rankingDiv = document.getElementById("rankingContainer");
+        rankingDiv.innerHTML = "<h3>🏆 랭킹</h3><ol>" +
+          snapshot.docs.map(doc => `<li>${doc.data().name}: ${doc.data().score}</li>`).join("") +
+          "</ol>";
+      });
+  }
+
   </script>
 </body>
 </html>
