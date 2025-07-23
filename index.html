@@ -15,13 +15,13 @@
       width: 300px;               /* 원하는 가로 크기 */
       height: calc(300px * 16 / 9); /* 9:16 비율 세로 길이 */
     }
-    #buttonContainer {
-      width: 600px;
-      margin: 10px auto 0 auto;
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
+   #buttonContainer {
+    width: 300px;          /* 캔버스 가로 크기에 맞추는 게 좋아요 */
+    margin: 10px auto 0;   /* 좌우 자동 마진으로 중앙 정렬 */
+    text-align: center;    /* 버튼 텍스트 중앙 정렬 */
+    display: flex;
+    justify-content: center;
+    gap: 20px;             /* 버튼 사이 간격 */
     }
     #startBtn, #restartBtn {
       padding: 12px 24px;
@@ -166,8 +166,9 @@
     function drawScore() {
       ctx.fillStyle = 'black';
       ctx.font = '16px Arial';
-      ctx.fillText(`Score: ${score}`, 10, 20);
-    }
+      ctx.textAlign = 'right';  // 오른쪽 정렬
+      ctx.fillText(`Score: ${score}`, canvas.width - 10, 20);  // 오른쪽 끝에서 10px 안쪽
+}
 
     function drawGround() {
       ctx.fillStyle = '#654321';
