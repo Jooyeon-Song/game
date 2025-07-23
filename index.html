@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>욱끼끼 게임</title>
+  <style>
+    #gameCanvas {
+      display: block;
+      margin: 0 auto;
+      background: skyblue;
+      border: 2px solid #333;
+      border-radius: 8px;
+      width: 300px;
+      height: calc(300px * 16 / 9); /* 9:16 비율 */
+    }
+    #buttonContainer {
+      width: 300px;
+      margin: 10px auto 0;
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+    #startBtn, #restartBtn {
+      padding: 12px 24px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    #startBtn {
+      background-color: #4CAF50;
+      color: white;
+    }
+    #startBtn:hover {
+      background-color: #45a049;
+    }
+    #restartBtn {
+      background-color: pink;
+      color: black;
+    }
+    #restartBtn:hover {
+      background-color: #ff7fa1;
+    }
+  </style>
+  <!-- Firebase SDK 추가 -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <canvas id="gameCanvas" width="300" height="533"></canvas>
+
+  <div id="buttonContainer">
+    <button id="startBtn">Start</button>
+    <button id="restartBtn" hidden>Restart</button>
+  </div>
+
+  <!-- 이름 입력창 및 랭킹 출력 -->
+  <div id="nameContainer" style="text-align: center; margin-top: 10px;" hidden>
+    <input id="playerName" placeholder="이름 입력" />
+    <button onclick="submitScore()">등록</button>
+  </div>
+
+  <div id="rankingContainer" style="text-align: center; margin-top: 20px;"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA3duM9_ow4_tNzuyceCHPq1eb3smRe8UM",
+      authDomain: "ukkkikki-a54bb.firebaseapp.com",
+      projectId: "ukkkikki-a54bb",
+      storageBucket: "ukkkikki-a54bb.appspot.com",
+      messagingSenderId: "1063235467265",
+      appId: "1:1063235467265:web:55ec53c799ffeb03626800"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    let gameStarted = false;
+    let gravity = 0.5;
+    let jumpPower = -10;
+    let ground = 290;
+    let frame = 0;
+    let score = 0;
+    let gameOver = false;
+    let obstacles = []; 
+    let jumpCount = 0;
+    const maxJump = 2;
+
+    const player = {
+      x: 50,
+      y: 300,
+      width: 60,
+      height: 60,
+      ySpeed: 0
+    };
+
+    const playerImg = new Image();
+    playerImg.src = 'https://i.imgur.com/GI955zR.png';
+
+    const bananaImg = new Image();
+    bananaImg.src = 'https://i.imgur.com/PEu7HHq.png';
+
+    playerImg.onload = () => {
+      player.y = ground - player.height;
+    };
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && jumpCount < maxJump && !gameOver && gameStarted) {
+        player.ySpeed = jumpPower;
+        jumpCount++;
+      }
+    });
+
+    canvas.addEventListener('click', () => {
+      if (jumpCount < maxJump && !gameOver && gameStarted) {
+        player.ySpeed = jumpPower;
+        jumpCount++;
+      }
+    });
+
+    startBtn.addEventListener('click', () => {
+      if (gameStarted) return;
+      gameStarted = true;
+      startBtn.hidden = true;
+      restartBtn.hidden = true;
+      document.getElementById("rankingContainer").innerHTML = "";
+
+      resetGame();
+      gameLoop();
+    });
+
+    restartBtn.addEventListener('click', () => {
+      resetGame();
+      gameLoop();
+    });
+
+    function resetGame() {
+      player.y = ground - player.height;
+      player.ySpeed = 0;
+      frame = 0;
+      score = 0;
+      gameOver = false;
+      jumpCount = 0;
+      obstacles = [];
+      restartBtn.hidden = true;
+      document.getElementById("nameContainer").hidden = true;
+    }
+
+    function updatePlayer() {
+      player.y += player.ySpeed;
+      player.ySpeed += gravity;
+
+      if (player.y >= ground - player.height) {
+        player.y = ground - player.height;
+        player.ySpeed = 0;
+        jumpCount = 0;
+      }
+    }
+
+    function drawPlayer() {
+      ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+    }
+
+    function drawScore() {
+      ctx.fillStyle = 'black';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(`Score: ${score}`, canvas.width - 10, 20);
+    }
+
+    function drawGround() {
+      ctx.fillStyle = '#654321';
+      ctx.fillRect(0, ground, canvas.width, canvas.height - ground);
+    }
+
+    function createObstacle() {
+      const width = 40;
+      const height = 40;
+      const x = canvas.width;
+      const y = ground - height;
+      const speed = 3;
+      return { x, y, width, height, speed };
+    }
+
+    function updateObstacles() {
+      if (frame % 120 === 0) {
+        obstacles.push(createObstacle());
+      }
+      obstacles.forEach(ob => ob.x -= ob.speed);
+      obstacles = obstacles.filter(ob => ob.x + ob.width > 0);
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(ob => {
+        ctx.drawImage(bananaImg, ob.x, ob.y, ob.width, ob.height);
+      });
+    }
+
+    function checkCollision() {
+      obstacles.forEach(ob => {
+        const padding = 5;
+        if (
+          player.x + padding < ob.x + ob.width - padding &&
+          player.x + player.width - padding > ob.x + padding &&
+          player.y + padding < ob.y + ob.height - padding &&
+          player.y + player.height - padding > ob.y + padding
+        ) {
+          gameOver = true;
+          restartBtn.hidden = false;
+        }
+      });
+    }
+
+    function gameLoop() {
+      if (!gameStarted) return;
+
+      if (gameOver) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'black';
+        ctx.font = '48px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 40);
+        ctx.font = '24px Arial';
+        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+
+        document.getElementById('nameContainer').hidden = false;
+        return;
+      }
+
+      updatePlayer();
+      updateObstacles();
+      checkCollision();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGround();
+      drawPlayer();
+      drawObstacles();
+      drawScore();
+
+      frame++;
+      score++;
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function submitScore() {
+      const name = document.getElementById('playerName').value.trim();
+      if (!name) return alert("이름을 입력해주세요!");
+
+      db.collection("scores").add({ name, score, timestamp: Date.now() })
+        .then(() => {
+          document.getElementById("nameContainer").hidden = true;
+          showRanking();
+        });
+    }
+
+    function showRanking() {
+     db.collection("scores")
+        .orderBy("score", "desc")
+        .limit(5)
+        .get()
+        .then(snapshot => {
+           const rankingDiv = document.getElementById("rankingContainer");
+            rankingDiv.innerHTML = "<h3>🏆 랭킹</h3><ol>" +
+             snapshot.docs.map((doc, index) => {
+                const data = doc.data();
+                 return `<li>${index + 1}위: ${data.name} — ${data.score}</li>`;
+            }).join("") +
+            "</ol>";
+        });
+      }
+
+  </script>
+</body>
+</html>
+
