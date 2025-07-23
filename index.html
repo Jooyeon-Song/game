@@ -1,250 +1,284 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>욱끼끼 게임</title>
-  <style>
-    /* CSS: 캔버스 및 버튼 스타일 */
-    #gameCanvas {
-      display: block;
-      margin: 0 auto;
-      background: skyblue;
-      border: 2px solid #333;
-      border-radius: 8px;
-    }
-    #buttonContainer {
-      width: 600px;
-      margin: 10px auto 0 auto;
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-    }
-    #startBtn, #restartBtn {
-      padding: 12px 24px;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: background-color 0.3s ease, transform 0.1s ease;
-    }
-    #startBtn {
-      background-color: #4CAF50;
-      color: white;
-    }
-    #startBtn:hover {
-      background-color: #45a049;
-    }
-    #startBtn:active {
-      transform: scale(0.95);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    #restartBtn {
-      background-color: pink;
-      color: black;
-    }
-    #restartBtn:hover {
-      background-color: #ff7fa1;
-    }
-    #restartBtn:active {
-      transform: scale(0.95);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>반응형 점프 게임</title>
+<style>
+  body {
+    margin: 0;
+    background: #87ceeb; /* skyblue */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100vh;
+  }
+  canvas {
+    max-width: 95vw;
+    height: auto;
+    background: skyblue;
+    border: 2px solid #333;
+    border-radius: 8px;
+    display: block;
+    margin-top: 20px;
+  }
+  button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #startBtn {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    transition: background-color 0.3s ease;
+  }
+  #startBtn:hover {
+    background-color: #45a049;
+  }
+  #restartBtn {
+    background-color: pink;
+    border: none;
+    display: none; /* 초기에는 숨김 */
+  }
+</style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="600" height="400"></canvas>
-  <div id="buttonContainer">
-    <button id="startBtn">Start</button>
-    <button id="restartBtn" hidden>Restart</button>
-  </div>
 
-  <script>
-    // JavaScript 게임 코드 (앞서 작성한 코드 전체 복사 붙여넣기)
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const startBtn = document.getElementById('startBtn');
-    const restartBtn = document.getElementById('restartBtn');
+<button id="startBtn">Start</button>
+<button id="restartBtn">Restart</button>
+<canvas id="gameCanvas"></canvas>
 
-    let gameStarted = false;
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
 
-    const player = {
-      x: 50,
-      y: 300,
-      width: 60,
-      height: 60,
-      ySpeed: 0
-    };
+  // 기본 캔버스 기준 크기 (원래 게임 기준)
+  const baseWidth = 600;
+  const baseHeight = 400;
 
-    let gravity = 0.5;
-    let jumpPower = -10;
-    let ground = 290;
-    let frame = 0;
-    let score = 0;
-    let gameOver = false;
-    let obstacles = []; 
-    let jumpCount = 0;
-    const maxJump = 2;
+  // 게임 상태 변수
+  let gameStarted = false;
+  let gameOver = false;
+  let frame = 0;
+  let score = 0;
+  let obstacles = [];
+  let jumpCount = 0;
+  const maxJump = 2;
 
-    const playerImg = new Image();
-    playerImg.src = 'https://i.imgur.com/GI955zR.png';
+  // 플레이어 객체 (초기값은 임시, resize시 조정됨)
+  const player = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    ySpeed: 0
+  };
 
-    const bananaImg = new Image();
-    bananaImg.src = 'https://i.imgur.com/PEu7HHq.png';
+  let gravity = 0.5;
+  let jumpPower = -10;
+  let ground = 0;
 
-    playerImg.onload = () => {
-      player.y = ground - player.height;
-      // gameLoop(); // 게임 시작은 버튼 클릭 시
-    };
+  // 이미지 로드
+  const playerImg = new Image();
+  playerImg.src = 'https://i.imgur.com/GI955zR.png';
 
-    document.addEventListener('keydown', e => {
-      if (e.code === 'Space' && jumpCount < maxJump && !gameOver && gameStarted) {
-        player.ySpeed = jumpPower;
-        jumpCount++;
-      }
-    });
+  const bananaImg = new Image();
+  bananaImg.src = 'https://i.imgur.com/PEu7HHq.png';
 
-    canvas.addEventListener('click', () => {
-      if (jumpCount < maxJump && !gameOver && gameStarted) {
-        player.ySpeed = jumpPower;
-        jumpCount++;
-      }
-    });
+  // 화면 크기에 맞게 캔버스 크기 조절 + 게임 크기 비율 맞추기
+  function resizeCanvas() {
+    const maxWidth = window.innerWidth * 0.95;
+    const maxHeight = window.innerHeight * 0.7;
+    const aspectRatio = baseWidth / baseHeight;
 
-    startBtn.addEventListener('click', () => {
-      if (gameStarted) return;
-      gameStarted = true;
-      startBtn.hidden = true;
-      restartBtn.hidden = true;
+    let width = maxWidth;
+    let height = width / aspectRatio;
 
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+
+    // ground, player 크기 및 위치 조정
+    ground = scaleY(290);
+    player.width = scaleX(60);
+    player.height = scaleY(60);
+    player.x = scaleX(50);
+    player.y = ground - player.height;
+  }
+
+  function scaleX(val) {
+    return (canvas.width / baseWidth) * val;
+  }
+  function scaleY(val) {
+    return (canvas.height / baseHeight) * val;
+  }
+
+  // 이벤트 리스너: 윈도우 크기 변경시 캔버스 재조정
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    if (!gameStarted) drawStartScreen();
+  });
+
+  // 점프키, 클릭 이벤트
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && jumpCount < maxJump && !gameOver && gameStarted) {
+      player.ySpeed = jumpPower;
+      jumpCount++;
+    }
+  });
+
+  canvas.addEventListener('click', () => {
+    if (jumpCount < maxJump && !gameOver && gameStarted) {
+      player.ySpeed = jumpPower;
+      jumpCount++;
+    }
+  });
+
+  // 게임 시작 버튼
+  startBtn.addEventListener('click', () => {
+    gameStarted = true;
+    gameOver = false;
+    frame = 0;
+    score = 0;
+    jumpCount = 0;
+    obstacles = [];
+    startBtn.style.display = 'none';
+    restartBtn.style.display = 'none';
+    resizeCanvas();
+    gameLoop();
+  });
+
+  // 게임 재시작 버튼
+  restartBtn.addEventListener('click', () => {
+    gameStarted = true;
+    gameOver = false;
+    frame = 0;
+    score = 0;
+    jumpCount = 0;
+    obstacles = [];
+    restartBtn.style.display = 'none';
+    resizeCanvas();
+    gameLoop();
+  });
+
+  function updatePlayer() {
+    player.y += player.ySpeed;
+    player.ySpeed += gravity;
+
+    if (player.y >= ground - player.height) {
       player.y = ground - player.height;
       player.ySpeed = 0;
-      frame = 0;
-      score = 0;
-      gameOver = false;
       jumpCount = 0;
-      obstacles = [];
+    }
+  }
 
-      gameLoop();
+  function createObstacle() {
+    const width = scaleX(40);
+    const height = scaleY(40);
+    const x = canvas.width;
+    const y = ground - height;
+    const speed = scaleX(3);
+    return { x, y, width, height, speed };
+  }
+
+  function updateObstacles() {
+    if (frame % 120 === 0) {
+      obstacles.push(createObstacle());
+    }
+    obstacles.forEach(ob => {
+      ob.x -= ob.speed;
     });
+    obstacles = obstacles.filter(ob => ob.x + ob.width > 0);
+  }
 
-    restartBtn.addEventListener('click', () => {
-      if (restartBtn.hidden) return;
-
-      player.y = ground - player.height;
-      player.ySpeed = 0;
-      frame = 0;
-      score = 0;
-      gameOver = false;
-      jumpCount = 0;
-      obstacles = [];
-      restartBtn.hidden = true;
-
-      gameLoop();
+  function drawObstacles() {
+    obstacles.forEach(ob => {
+      ctx.drawImage(bananaImg, ob.x, ob.y, ob.width, ob.height);
     });
+  }
 
-    function updatePlayer() {
-      player.y += player.ySpeed;
-      player.ySpeed += gravity;
-
-      if (player.y >= ground - player.height) {
-        player.y = ground - player.height;
-        player.ySpeed = 0;
-        jumpCount = 0;
+  function checkCollision() {
+    obstacles.forEach(ob => {
+      const padding = scaleX(5);
+      if (
+        player.x + padding < ob.x + ob.width - padding &&
+        player.x + player.width - padding > ob.x + padding &&
+        player.y + padding < ob.y + ob.height - padding &&
+        player.y + player.height - padding > ob.y + padding
+      ) {
+        gameOver = true;
+        restartBtn.style.display = 'inline-block';
       }
+    });
+  }
+
+  function drawGround() {
+    ctx.fillStyle = '#654321';
+    ctx.fillRect(0, ground, canvas.width, canvas.height - ground);
+  }
+
+  function drawPlayer() {
+    ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+  }
+
+  function drawScore() {
+    ctx.fillStyle = 'black';
+    ctx.font = `${scaleY(16)}px Arial`;
+    ctx.fillText(`Score: ${score}`, scaleX(10), scaleY(20));
+  }
+
+  function gameLoop() {
+    if (!gameStarted) {
+      drawStartScreen();
+      return;
     }
-
-    function drawPlayer() {
-      ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
-    }
-
-    function drawScore() {
-      ctx.fillStyle = 'black';
-      ctx.font = '16px Arial';
-      ctx.fillText(`Score: ${score}`, 10, 20);
-    }
-
-    function drawGround() {
-      ctx.fillStyle = '#654321';
-      ctx.fillRect(0, ground, canvas.width, canvas.height - ground);
-    }
-
-    function createObstacle() {
-      const width = 40;
-      const height = 40;
-      const x = canvas.width;
-      const y = ground - height;
-      const speed = 3;
-      return { x, y, width, height, speed };
-    }
-
-    function updateObstacles() {
-      if (frame % 120 === 0) {
-        obstacles.push(createObstacle());
-      }
-
-      obstacles.forEach(ob => {
-        ob.x -= ob.speed;
-      });
-
-      obstacles = obstacles.filter(ob => ob.x + ob.width > 0);
-    }
-
-    function drawObstacles() {
-      obstacles.forEach(ob => {
-        ctx.drawImage(bananaImg, ob.x, ob.y, ob.width, ob.height);
-      });
-    }
-
-    function checkCollision() {
-      obstacles.forEach(ob => {
-        const padding = 5;
-
-        if (
-          player.x + padding < ob.x + ob.width - padding &&
-          player.x + player.width - padding > ob.x + padding &&
-          player.y + padding < ob.y + ob.height - padding &&
-          player.y + player.height - padding > ob.y + padding
-        ) {
-          gameOver = true;
-          restartBtn.hidden = false;
-        }
-      });
-    }
-
-    function gameLoop() {
-      if (!gameStarted) return;
-
-      if (gameOver) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'black';
-        ctx.font = '48px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
-        restartBtn.hidden = false;
-        return;
-      }
-
-      updatePlayer();
-      updateObstacles();
-      checkCollision();
-
+    if (gameOver) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawGround();
-      drawPlayer();
-      drawObstacles();
-      drawScore();
-
-      frame++;
-      score++;
-
-      requestAnimationFrame(gameLoop);
+      ctx.fillStyle = 'black';
+      ctx.font = `${scaleY(30)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+      return;
     }
-  </script>
+
+    frame++;
+    score++;
+
+    updatePlayer();
+    updateObstacles();
+    checkCollision();
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawPlayer();
+    drawObstacles();
+    drawGround();
+    drawScore();
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  function drawStartScreen() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'black';
+    ctx.font = `${scaleY(24)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Press Start to Play', canvas.width / 2, canvas.height / 2);
+  }
+
+  // 초기 캔버스 크기 설정 및 시작 화면 표시
+  resizeCanvas();
+  drawStartScreen();
+</script>
+
 </body>
 </html>
-
