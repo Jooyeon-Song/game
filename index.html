@@ -12,7 +12,7 @@
       border: 2px solid #333;
       border-radius: 8px;
       width: 300px;
-      height: calc(300px * 16 / 9); /* 9:16 비율 */
+      height: calc(300px * 16 / 9);
     }
     #buttonContainer {
       width: 300px;
@@ -46,7 +46,6 @@
       background-color: #ff7fa1;
     }
   </style>
-  <!-- Firebase SDK 추가 -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
@@ -58,7 +57,6 @@
     <button id="restartBtn" hidden>Restart</button>
   </div>
 
-  <!-- 이름 입력창 및 랭킹 출력 -->
   <div id="nameContainer" style="text-align: center; margin-top: 10px;" hidden>
     <input id="playerName" placeholder="이름 입력" />
     <button onclick="submitScore()">등록</button>
@@ -91,7 +89,6 @@
     let frame = 0;
     let score = 0;
     let gameOver = false;
-    let obstacles = []; 
     let jumpCount = 0;
     const maxJump = 2;
 
@@ -107,7 +104,13 @@
     playerImg.src = 'https://i.imgur.com/GI955zR.png';
 
     const bananaImg = new Image();
-    bananaImg.src = 'https://i.imgur.com/PEu7HHq.png';
+    bananaImg.src = 'https://i.imgur.com/0AaX41U.png';
+
+    const treeImg = new Image();
+    treeImg.src = 'https://i.imgur.com/WCP9G32.png';
+
+    const bananas = [];
+    const obstacles = [];
 
     playerImg.onload = () => {
       player.y = ground - player.height;
@@ -133,7 +136,6 @@
       startBtn.hidden = true;
       restartBtn.hidden = true;
       document.getElementById("rankingContainer").innerHTML = "";
-
       resetGame();
       gameLoop();
     });
@@ -150,7 +152,8 @@
       score = 0;
       gameOver = false;
       jumpCount = 0;
-      obstacles = [];
+      obstacles.length = 0;
+      bananas.length = 0;
       restartBtn.hidden = true;
       document.getElementById("nameContainer").hidden = true;
     }
@@ -187,35 +190,66 @@
       const height = 40;
       const x = canvas.width;
       const y = ground - height;
-      const speed = 3;
-      return { x, y, width, height, speed };
+      return { x, y, width, height, speed: 3, scored: false };
     }
 
     function updateObstacles() {
-      if (frame % 120 === 0) {
-        obstacles.push(createObstacle());
-      }
-      obstacles.forEach(ob => ob.x -= ob.speed);
-      obstacles = obstacles.filter(ob => ob.x + ob.width > 0);
-    }
+      obstacles.forEach(obstacle => {
+        obstacle.x -= obstacle.speed;
 
-    function drawObstacles() {
-      obstacles.forEach(ob => {
-        ctx.drawImage(bananaImg, ob.x, ob.y, ob.width, ob.height);
-      });
-    }
+        if (!obstacle.scored && obstacle.x + obstacle.width < player.x) {
+          score += 2;
+          obstacle.scored = true;
+        }
 
-    function checkCollision() {
-      obstacles.forEach(ob => {
-        const padding = 5;
         if (
-          player.x + padding < ob.x + ob.width - padding &&
-          player.x + player.width - padding > ob.x + padding &&
-          player.y + padding < ob.y + ob.height - padding &&
-          player.y + player.height - padding > ob.y + padding
+          player.x < obstacle.x + obstacle.width &&
+          player.x + player.width > obstacle.x &&
+          player.y < obstacle.y + obstacle.height &&
+          player.y + player.height > obstacle.y
         ) {
           gameOver = true;
           restartBtn.hidden = false;
+        }
+      });
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(obstacle => {
+        ctx.drawImage(treeImg, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      });
+    }
+
+    function spawnBanana() {
+      bananas.push({
+        x: canvas.width,
+        y: Math.random() * (ground - 60) + 50,
+        width: 20,
+        height: 20,
+        collected: false
+      });
+    }
+
+    function updateBananas() {
+      bananas.forEach(banana => {
+        banana.x -= 3;
+        if (
+          !banana.collected &&
+          player.x < banana.x + banana.width &&
+          player.x + player.width > banana.x &&
+          player.y < banana.y + banana.height &&
+          player.y + player.height > banana.y
+        ) {
+          banana.collected = true;
+          score += 1;
+        }
+      });
+    }
+
+    function drawBananas() {
+      bananas.forEach(banana => {
+        if (!banana.collected) {
+          ctx.drawImage(bananaImg, banana.x, banana.y, banana.width, banana.height);
         }
       });
     }
@@ -232,23 +266,24 @@
         ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 40);
         ctx.font = '24px Arial';
         ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
-
         document.getElementById('nameContainer').hidden = false;
         return;
       }
 
       updatePlayer();
       updateObstacles();
-      checkCollision();
+      updateBananas();
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGround();
       drawPlayer();
+      drawBananas();
       drawObstacles();
       drawScore();
 
       frame++;
-      score++;
+      if (frame % 150 === 0) spawnBanana();
+      if (frame % 120 === 0) obstacles.push(createObstacle());
 
       requestAnimationFrame(gameLoop);
     }
@@ -265,22 +300,20 @@
     }
 
     function showRanking() {
-     db.collection("scores")
+      db.collection("scores")
         .orderBy("score", "desc")
         .limit(5)
         .get()
         .then(snapshot => {
-           const rankingDiv = document.getElementById("rankingContainer");
-            rankingDiv.innerHTML = "<h3>🏆 랭킹</h3><ol>" +
-             snapshot.docs.map((doc, index) => {
-                const data = doc.data();
-                 return `<li>${index + 1}위: ${data.name} — ${data.score}</li>`;
+          const rankingDiv = document.getElementById("rankingContainer");
+          rankingDiv.innerHTML = "<h3>🏆 랭킹</h3><ol>" +
+            snapshot.docs.map((doc, index) => {
+              const data = doc.data();
+              return `<li>${index + 1}위: ${data.name} — ${data.score}</li>`;
             }).join("") +
             "</ol>";
         });
-      }
-
+    }
   </script>
 </body>
 </html>
-
