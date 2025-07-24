@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>욱끼끼 게임</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     #gameCanvas {
       display: block;
@@ -44,6 +45,9 @@
     }
     #restartBtn:hover {
       background-color: #ff7fa1;
+    }
+    body, button, h1, h2, h3, p, span, canvas {
+    font-family: 'Press Start 2P', cursive;
     }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -175,7 +179,7 @@
 
     function drawScore() {
       ctx.fillStyle = 'black';
-      ctx.font = '16px Arial';
+      ctx.font = "16px 'Press Start 2P'";
       ctx.textAlign = 'right';
       ctx.fillText(`Score: ${score}`, canvas.width - 10, 20);
     }
@@ -260,11 +264,11 @@
       if (gameOver) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = 'black';
-        ctx.font = '48px Arial';
+        ctx.font = "20px 'Press Start 2P'";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 40);
-        ctx.font = '24px Arial';
+        ctx.font = "20px 'Press Start 2P'";
         ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
         document.getElementById('nameContainer').hidden = false;
         return;
